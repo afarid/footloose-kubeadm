@@ -1,0 +1,30 @@
+cluster:
+  name: cluster
+  privateKey: cluster-key
+machines:
+- count: 3
+  spec:
+    backend: docker
+    image: quay.io/footloose/ubuntu18.04
+    name: worker%d
+    portMappings:
+    - containerPort: 22
+    privileged: true
+    volumes:
+    - type: volume
+      destination: /var/lib/docker    
+    networks:
+    - footloose-cluster
+- count: 1
+  spec:
+    backend: docker
+    image: quay.io/footloose/ubuntu18.04
+    name: master%d
+    portMappings:
+    - containerPort: 22
+    privileged: true
+    volumes:
+    - type: volume
+      destination: /var/lib/docker    
+    networks:
+    - footloose-cluster      
