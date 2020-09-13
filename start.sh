@@ -1,4 +1,5 @@
 #!/usr/bin/env zsh
+set -x
 set -o pipefail
 # Helper function to run scripts on multibe nodes
 
@@ -34,6 +35,11 @@ net.bridge.bridge-nf-call-iptables = 1
 EOF
 sysctl --system"
 
+
+# disable dns caching # Fixing bug here https://coredns.io/plugins/loop/#troubleshooting
+footloose_run all "systemctl stop systemd-resolved && systemctl disable systemd-resolved"
+footloose_run all "echo 'nameserver 8.8.8.8' > /etc/resolv.conf"
+
 # Enabling kernel netfilter module (already enabled on the image)
 # footloose_run all "modprobe br_netfilter"
 
@@ -42,7 +48,7 @@ footloose_run all "curl -L https://get.docker.io | bash -"
 footloose_run all "service docker start"
 
 # Install kernel image package
-footloose_run all 'apt-get install -y -q linux-image-$(uname -r)'
+footloose_run all 'apt-get install -y -qq linux-image-$(uname -r)'
 
 # Install kubelet, kubectl, kubeadm
 footloose_run all "sudo apt-get update && sudo apt-get install -y apt-transport-https curl
@@ -50,8 +56,8 @@ curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add
 cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
 deb https://apt.kubernetes.io/ kubernetes-xenial main
 EOF
-sudo apt-get update
-sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-get -qq update
+sudo apt-get install -y -qq kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl"
 
 # Launch kubernetes control plane
@@ -71,10 +77,7 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config'
 footloose_run master $'kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d \'\n\')"'
 
 # Generate kube-adm token for the workers to join master
-DISCOVERY_TOKEN_CA_CERT_HASH=$(footloose ssh  root@master0 $'openssl x509 -in /etc/kubernetes/pki/ca.crt -noout -pubkey | openssl rsa -pubin -outform DER 2>/dev/null | sha256sum | cut -d\' \' -f1')
+DISCOVERY_TOKEN_CA_CERT_HASH="$(footloose ssh  root@master0 $'openssl x509 -in /etc/kubernetes/pki/ca.crt -noout -pubkey | openssl rsa -pubin -outform DER 2>/dev/null | sha256sum | cut -d\' \' -f1')"
 
-footloose_run worker "kubeadm join ${APISERVER_ADVERTISE_ADDRESS}:6443 --token ${TOKEN} \
+footloose_run worker "kubeadm join ${APISERVER_ADVERTISE_ADDRESS}:6443 --token ${KUBEADM_TOKEN} \
                      --discovery-token-ca-cert-hash sha256:${DISCOVERY_TOKEN_CA_CERT_HASH}"
-
-
-# Fix https://coredns.io/plugins/loop/#troubleshooting
