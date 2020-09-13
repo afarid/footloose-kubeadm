@@ -10,7 +10,7 @@
 ```shell script
 docker network create footloose-cluster
 ```
-- Run the script the provision the cluster
+- Run the script that provisions the cluster
 ```shell script
 ./start.sh
 ```
