@@ -4,7 +4,13 @@
 - Install docker 
 - Install footloose 
 
-## Lanuch you cluster
+
+## Lanuch your cluster
+- Create a seperate docker network if it is not create
+```shell script
+docker network create footloose-cluster
+```
+- Run the script the provision the cluster
 ```shell script
 ./start.sh
 ```
